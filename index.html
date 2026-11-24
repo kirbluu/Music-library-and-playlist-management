@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Library</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: centered login card, then a two-column workspace (playlists | songs) that stacks on phones. */
+:root {
+  --bg: #f3f6f6;
+  --surface: #ffffff;
+  --fg: #14211f;
+  --muted: #5d6e6b;
+  --line: #d6e0de;
+  --accent: #0d7a6e;
+  --accent-fg: #ffffff;
+  --accent-soft: #dff1ee;
+  --danger: #b4372b;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1615; --surface: #172221; --fg: #e6f0ee; --muted: #93a8a4;
+    --line: #2a3b39; --accent: #3fc1b0; --accent-fg: #07211d; --accent-soft: #1b3532; --danger: #f0897e;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1615; --surface: #172221; --fg: #e6f0ee; --muted: #93a8a4;
+  --line: #2a3b39; --accent: #3fc1b0; --accent-fg: #07211d; --accent-soft: #1b3532; --danger: #f0897e;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+h1, h2, h3 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+.wrap { max-width: 980px; margin: 0 auto; }
+input, select, button { font: inherit; color: inherit; }
+input, select {
+  width: 100%; padding: 9px 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg);
+}
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 4px; }
+.field { margin-bottom: 14px; }
+.btn {
+  background: var(--accent); color: var(--accent-fg); border: 0; border-radius: 6px; padding: 9px 16px;
+  font-weight: 600; cursor: pointer;
+}
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+.btn.small { padding: 5px 10px; font-size: 13px; }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--line); }
+.msg { min-height: 20px; font-size: 13px; margin: 0 0 10px; color: var(--danger); }
+.msg.ok { color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); }
+
+/* Login */
+.auth { max-width: 400px; margin: 7vh auto 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 24px; }
+.auth h1 { font-size: 26px; margin-bottom: 4px; }
+.tabs { display: flex; gap: 4px; margin: 18px 0; border-bottom: 1px solid var(--line); }
+.tab { background: none; border: 0; padding: 8px 14px; cursor: pointer; color: var(--muted); font-weight: 600; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.demo { margin-top: 16px; padding: 10px 12px; background: var(--accent-soft); border-radius: 6px; font-size: 13px; }
+
+/* Workspace */
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.top h1 { font-size: 24px; }
+.who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 720px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.panel h2 { font-size: 17px; margin-bottom: 12px; }
+.pl-list { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 4px; }
+.pl-item { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; cursor: pointer; }
+.pl-item:hover { background: var(--bg); }
+.pl-item[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent); }
+.pl-item small { color: var(--muted); white-space: nowrap; }
+.row { display: flex; gap: 8px; }
+.row input { min-width: 0; }
+.table-wrap { overflow-x: auto; margin-bottom: 16px; }
+table { width: 100%; border-collapse: collapse; min-width: 440px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+td.id { color: var(--muted); font-variant-numeric: tabular-nums; width: 48px; }
+.empty { padding: 20px 4px; color: var(--muted); }
+.add { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 8px; align-items: end; }
+@media (max-width: 720px) { .add { grid-template-columns: minmax(0, 1fr); } }
+.head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.head h2 { margin: 0; }
+.schema { margin-top: 20px; }
+.schema summary { cursor: pointer; font-weight: 600; }
+.schema pre { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; font-size: 12.5px; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <!-- Login / register -->
+  <section id="auth-view" class="auth" hidden>
+    <h1>Music Library</h1>
+    <div class="note">Organize your playlists and songs.</div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-login" aria-selected="true" type="button">Log in</button>
+      <button class="tab" role="tab" id="tab-register" aria-selected="false" type="button">Register</button>
+    </div>
+    <form id="auth-form" autocomplete="on">
+      <div class="field"><label for="f-username">Username</label><input id="f-username" autocomplete="username" required></div>
+      <div class="field reg" hidden><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email"></div>
+      <div class="field reg" hidden>
+        <label for="f-gender">Gender</label>
+        <select id="f-gender"><option>Female</option><option>Male</option><option>Non-binary</option><option>Prefer not to say</option></select>
+      </div>
+      <div class="field"><label for="f-password">Password</label><input id="f-password" type="password" autocomplete="current-password" required minlength="6"></div>
+      <p class="msg" id="auth-msg" role="alert"></p>
+      <button class="btn" id="auth-submit" type="submit" style="width:100%">Log in</button>
+    </form>
+    <div class="demo">Example account: <strong>demo</strong> / <strong>demo1234</strong></div>
+  </section>
+
+  <!-- Workspace -->
+  <section id="app-view" hidden>
+    <div class="top">
+      <h1>Music Library</h1>
+      <div class="who"><span class="note" id="who"></span><button class="btn ghost small" id="logout" type="button">Log out</button></div>
+    </div>
+    <div class="grid">
+      <div class="panel">
+        <h2>My playlists</h2>
+        <ul class="pl-list" id="pl-list"></ul>
+        <form id="pl-form" class="row">
+          <input id="pl-name" placeholder="New playlist name" aria-label="New playlist name" required>
+          <button class="btn" type="submit">Add</button>
+        </form>
+      </div>
+      <div class="panel" id="song-panel"></div>
+    </div>
+    <details class="schema">
+      <summary>Database tables</summary>
+      <pre>USER(User_id PK, Username, Email, Gender, Password_hash, Password_salt)
+PLAYLIST(Playlist_id PK, User_id FK, Playlist_name, Date_created)
+SONG(Song_id PK, Playlist_id FK, Song_title, Artist, Genre)</pre>
+      <p class="note">Data is saved in this browser only. It is not shared with other devices or people.</p>
+    </details>
+  </section>
+</div>
+
+<script>
+const KEY = "musiclib.db.v1";
+const $ = (id) => document.getElementById(id);
+let mode = "login", currentUser = null, selectedPlaylist = null;
+
+/* ---------- Database (three tables, saved in this browser) ---------- */
+let memoryDb = null;
+function loadDb() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return memoryDb || { USER: [], PLAYLIST: [], SONG: [], seq: { USER: 0, PLAYLIST: 0, SONG: 0 } };
+}
+function saveDb(db) {
+  memoryDb = db;
+  try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {}
+}
+function insert(db, table, row) {
+  db.seq[table] += 1;
+  const idField = { USER: "User_id", PLAYLIST: "Playlist_id", SONG: "Song_id" }[table];
+  row[idField] = db.seq[table];
+  db[table].push(row);
+  return row;
+}
+
+/* ---------- Passwords: salted PBKDF2 hash ---------- */
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+async function hashPassword(password, saltHex) {
+  const salt = saltHex ? Uint8Array.from(saltHex.match(/../g).map((h) => parseInt(h, 16))) : crypto.getRandomValues(new Uint8Array(16));
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt, iterations: 100000 }, key, 256);
+  return { hash: hex(bits), salt: hex(salt) };
+}
+
+async function register(username, email, gender, password) {
+  const db = loadDb();
+  const u = username.trim().toLowerCase();
+  if (db.USER.some((x) => x.Username.toLowerCase() === u)) throw new Error("That username is taken.");
+  if (db.USER.some((x) => x.Email.toLowerCase() === email.trim().toLowerCase())) throw new Error("That email is already registered.");
+  const { hash, salt } = await hashPassword(password);
+  const user = insert(db, "USER", { Username: username.trim(), Email: email.trim(), Gender: gender, Password_hash: hash, Password_salt: salt });
+  saveDb(db);
+  return user;
+}
+async function login(username, password) {
+  const db = loadDb();
+  const user = db.USER.find((x) => x.Username.toLowerCase() === username.trim().toLowerCase());
+  if (!user) throw new Error("Wrong username or password.");
+  const { hash } = await hashPassword(password, user.Password_salt);
+  if (hash !== user.Password_hash) throw new Error("Wrong username or password.");
+  return user;
+}
+async function seedDemo() {
+  const db = loadDb();
+  if (db.USER.length) return;
+  const { hash, salt } = await hashPassword("demo1234");
+  const user = insert(db, "USER", { Username: "demo", Email: "demo@example.com", Gender: "Prefer not to say", Password_hash: hash, Password_salt: salt });
+  const pl = insert(db, "PLAYLIST", { User_id: user.User_id, Playlist_name: "Example playlist", Date_created: today() });
+  insert(db, "SONG", { Playlist_id: pl.Playlist_id, Song_title: "Example song one", Artist: "Example artist", Genre: "Pop" });
+  insert(db, "SONG", { Playlist_id: pl.Playlist_id, Song_title: "Example song two", Artist: "Example artist", Genre: "Rock" });
+  saveDb(db);
+}
+const today = () => new Date().toISOString().slice(0, 10);
+
+/* ---------- Views ---------- */
+function showAuth() {
+  currentUser = null; selectedPlaylist = null;
+  try { sessionStorage.removeItem("musiclib.session"); } catch (e) {}
+  $("app-view").hidden = true; $("auth-view").hidden = false;
+}
+function showApp(user) {
+  currentUser = user;
+  try { sessionStorage.setItem("musiclib.session", String(user.User_id)); } catch (e) {}
+  $("auth-view").hidden = true; $("app-view").hidden = false;
+  $("who").textContent = "Signed in as " + user.Username;
+  const db = loadDb();
+  const mine = db.PLAYLIST.filter((p) => p.User_id === user.User_id);
+  selectedPlaylist = mine.length ? mine[0].Playlist_id : null;
+  render();
+}
+function setMode(m) {
+  mode = m;
+  $("tab-login").setAttribute("aria-selected", m === "login");
+  $("tab-register").setAttribute("aria-selected", m === "register");
+  document.querySelectorAll(".reg").forEach((el) => (el.hidden = m === "login"));
+  $("f-email").required = m === "register";
+  $("f-password").autocomplete = m === "login" ? "current-password" : "new-password";
+  $("auth-submit").textContent = m === "login" ? "Log in" : "Create account";
+  $("auth-msg").textContent = "";
+}
+function msg(text, ok) { const el = $("auth-msg"); el.textContent = text; el.className = "msg" + (ok ? " ok" : ""); }
+
+function render() {
+  const db = loadDb();
+  const mine = db.PLAYLIST.filter((p) => p.User_id === currentUser.User_id);
+  const list = $("pl-list");
+  list.textContent = "";
+  if (!mine.length) {
+    const li = document.createElement("li"); li.className = "note"; li.textContent = "No playlists yet."; list.appendChild(li);
+  }
+  mine.forEach((p) => {
+    const count = db.SONG.filter((s) => s.Playlist_id === p.Playlist_id).length;
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "pl-item";
+    b.setAttribute("aria-current", p.Playlist_id === selectedPlaylist);
+    const n = document.createElement("span"); n.textContent = p.Playlist_name;
+    const c = document.createElement("small"); c.textContent = count + (count === 1 ? " song" : " songs");
+    b.append(n, c);
+    b.onclick = () => { selectedPlaylist = p.Playlist_id; render(); };
+    li.appendChild(b); list.appendChild(li);
+  });
+  renderSongs(db, mine);
+}
+
+function renderSongs(db, mine) {
+  const panel = $("song-panel");
+  panel.textContent = "";
+  const pl = mine.find((p) => p.Playlist_id === selectedPlaylist);
+  if (!pl) {
+    const d = document.createElement("div"); d.className = "empty";
+    d.textContent = "Create a playlist on the left to start adding songs.";
+    panel.appendChild(d); return;
+  }
+  const head = document.createElement("div"); head.className = "head";
+  const h = document.createElement("h2"); h.textContent = pl.Playlist_name;
+  const meta = document.createElement("span"); meta.className = "note"; meta.textContent = "Created " + pl.Date_created;
+  const del = document.createElement("button"); del.className = "btn danger small"; del.type = "button"; del.textContent = "Delete playlist";
+  del.onclick = () => {
+    if (del.dataset.armed !== "1") { del.dataset.armed = "1"; del.textContent = "Tap again to confirm"; return; }
+    const d = loadDb();
+    d.SONG = d.SONG.filter((s) => s.Playlist_id !== pl.Playlist_id);
+    d.PLAYLIST = d.PLAYLIST.filter((p) => p.Playlist_id !== pl.Playlist_id);
+    saveDb(d);
+    const rest = d.PLAYLIST.filter((p) => p.User_id === currentUser.User_id);
+    selectedPlaylist = rest.length ? rest[0].Playlist_id : null;
+    render();
+  };
+  head.append(h, meta, del);
+  panel.appendChild(head);
+
+  const songs = db.SONG.filter((s) => s.Playlist_id === pl.Playlist_id);
+  const wrap = document.createElement("div"); wrap.className = "table-wrap";
+  if (!songs.length) {
+    const e = document.createElement("div"); e.className = "empty"; e.textContent = "No songs yet. Add the first one below.";
+    wrap.appendChild(e);
+  } else {
+    const t = document.createElement("table");
+    t.innerHTML = "<thead><tr><th>ID</th><th>Title</th><th>Artist</th><th>Genre</th><th></th></tr></thead>";
+    const tb = document.createElement("tbody");
+    songs.forEach((s) => {
+      const tr = document.createElement("tr");
+      [s.Song_id, s.Song_title, s.Artist, s.Genre].forEach((v, i) => {
+        const td = document.createElement("td"); if (i === 0) td.className = "id"; td.textContent = v || ""; tr.appendChild(td);
+      });
+      const td = document.createElement("td");
+      const rm = document.createElement("button"); rm.className = "btn danger small"; rm.type = "button"; rm.textContent = "Remove";
+      rm.onclick = () => { const d = loadDb(); d.SONG = d.SONG.filter((x) => x.Song_id !== s.Song_id); saveDb(d); render(); };
+      td.appendChild(rm); tr.appendChild(td); tb.appendChild(tr);
+    });
+    t.appendChild(tb); wrap.appendChild(t);
+  }
+  panel.appendChild(wrap);
+
+  const f = document.createElement("form"); f.className = "add";
+  f.innerHTML =
+    '<div><label for="s-title">Song title</label><input id="s-title" required></div>' +
+    '<div><label for="s-artist">Artist</label><input id="s-artist"></div>' +
+    '<div><label for="s-genre">Genre</label><input id="s-genre"></div>' +
+    '<button class="btn" type="submit">Add song</button>';
+  f.onsubmit = (ev) => {
+    ev.preventDefault();
+    const d = loadDb();
+    insert(d, "SONG", { Playlist_id: pl.Playlist_id, Song_title: $("s-title").value.trim(), Artist: $("s-artist").value.trim(), Genre: $("s-genre").value.trim() });
+    saveDb(d); render();
+    $("s-title").focus();
+  };
+  panel.appendChild(f);
+}
+
+/* ---------- Events ---------- */
+$("tab-login").onclick = () => setMode("login");
+$("tab-register").onclick = () => setMode("register");
+$("auth-form").onsubmit = async (ev) => {
+  ev.preventDefault();
+  if (!(window.crypto && crypto.subtle)) { msg("This browser cannot hash passwords securely, so login is unavailable."); return; }
+  const btn = $("auth-submit"); btn.disabled = true; msg("");
+  try {
+    const username = $("f-username").value, password = $("f-password").value;
+    if (mode === "register") {
+      await register(username, $("f-email").value, $("f-gender").value, password);
+      setMode("login"); $("f-password").value = "";
+      msg("Account created. Log in to continue.", true);
+    } else {
+      showApp(await login(username, password));
+      $("f-password").value = "";
+    }
+  } catch (e) { msg(e.message); }
+  btn.disabled = false;
+};
+$("pl-form").onsubmit = (ev) => {
+  ev.preventDefault();
+  const d = loadDb();
+  const p = insert(d, "PLAYLIST", { User_id: currentUser.User_id, Playlist_name: $("pl-name").value.trim(), Date_created: today() });
+  saveDb(d); selectedPlaylist = p.Playlist_id; $("pl-name").value = ""; render();
+};
+$("logout").onclick = showAuth;
+
+/* ---------- Start ---------- */
+(async function start() {
+  try { await seedDemo(); } catch (e) {}
+  let restored = null;
+  try {
+    const id = Number(sessionStorage.getItem("musiclib.session"));
+    if (id) restored = loadDb().USER.find((u) => u.User_id === id);
+  } catch (e) {}
+  restored ? showApp(restored) : showAuth();
+})();
+</script>
+
+</body>
+</html>
